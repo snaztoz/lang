@@ -5,6 +5,10 @@ enum TokenKind {
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
     Ident,
 
+    #[error]
+    #[regex(r"[ \t\n\f]+", logos::skip)]
+    Error,
+
     /**
      * Literals
      */
@@ -14,10 +18,6 @@ enum TokenKind {
     #[regex("0(?i)o[0-7]+")] // oct
     #[regex("0(?i)b[0-1]+")] // bin
     Integer,
-
-    #[error]
-    #[regex(r"[ \t\n\f]+", logos::skip)]
-    Error,
 }
 
 #[cfg(test)]
