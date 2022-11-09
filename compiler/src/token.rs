@@ -1,6 +1,7 @@
 use logos::Logos;
 
 #[derive(Debug, Logos, PartialEq)]
+#[rustfmt::skip]
 enum TokenKind {
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
     Ident,
@@ -8,6 +9,72 @@ enum TokenKind {
     #[error]
     #[regex(r"[ \t\n\f]+", logos::skip)]
     Error,
+
+    /**
+     * Keywords
+     */
+
+    #[token("break")]       Break,
+    #[token("const")]       Const,
+    #[token("continue")]    Continue,
+    #[token("else")]        Else,
+    #[token("if")]          If,
+    #[token("import")]      Import,
+    #[token("package")]     Package,
+    #[token("var")]         Var,
+    #[token("while")]       While,
+
+    /**
+     * Symbols
+     */
+
+    #[token("+")]       Add,
+    #[token("-")]       Sub,
+    #[token("*")]       Mul,
+    #[token("/")]       Div,
+    #[token("%")]       Rem,
+
+    #[token("&")]       And,
+    #[token("|")]       Or,
+    #[token("^")]       Xor,
+    #[token("<<")]      Shl,
+    #[token(">>")]      Shr,
+
+    #[token("+=")]      AddAssign,
+    #[token("-=")]      SubAssign,
+    #[token("*=")]      MulAssign,
+    #[token("/=")]      DivAssign,
+    #[token("%=")]      RemAssign,
+
+    #[token("&=")]      AndAssign,
+    #[token("|=")]      OrAssign,
+    #[token("^=")]      XorAssign,
+    #[token("<<=")]     ShlAssign,
+    #[token(">>=")]     ShrAssign,
+
+    #[token("&&")]      LogicalAnd,
+    #[token("||")]      LogicalOr,
+
+    #[token("=")]       Assign,
+    #[token("!")]       Not,
+    #[token("==")]      Equal,
+    #[token("!=")]      NotEqual,
+    #[token("<")]       Less,
+    #[token("<=")]      LessEqual,
+    #[token(">")]       Greater,
+    #[token(">=")]      GreaterEqual,
+
+    #[token("(")]       LParen,
+    #[token("{")]       LBrace,
+    #[token("[")]       LBrack,
+    #[token(")")]       RParen,
+    #[token("}")]       RBrace,
+    #[token("]")]       RBrack,
+
+    #[token(",")]       Comma,
+    #[token(".")]       Period,
+    #[token(";")]       Semicolon,
+    #[token(":")]       Colon,
 
     /**
      * Literals
