@@ -1,8 +1,15 @@
-use logos::Logos;
+use logos::{Logos, Span};
+
+#[derive(Debug, PartialEq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: Span,
+    pub value: String,
+}
 
 #[derive(Debug, Logos, PartialEq)]
 #[rustfmt::skip]
-enum TokenKind {
+pub enum TokenKind {
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
     Ident,
 
