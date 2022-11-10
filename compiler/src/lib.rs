@@ -3,5 +3,6 @@ mod parser;
 mod token;
 
 pub fn greet() {
-    println!("Hello, world!");
+    let tokens = lexer::lex("package foo;");
+    let _ast = parser::parse(tokens);
 }
