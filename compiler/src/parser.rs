@@ -52,11 +52,9 @@ where
     //      package ext;
     //
     fn parse_package(&mut self) -> Result<()> {
-        let kind = self.tokens.next().map(|t| t.kind);
-        if matches!(kind, Some(k) if k == TokenKind::Package) {
-            let package = self.parse_package_name()?;
-            self.ast.package = Some(package);
-        }
+        self.tokens.next();
+        let package = self.parse_package_name()?;
+        self.ast.package = Some(package);
         Ok(())
     }
 
