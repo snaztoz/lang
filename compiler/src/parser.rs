@@ -1,67 +1,86 @@
 use self::error::Error;
 use crate::token::{Token, TokenKind};
 use ast::{Ast, PackageNameTokens};
+use std::iter::Peekable;
 
 pub mod ast;
 pub mod error;
 
 type Result<T> = std::result::Result<T, Error>;
-type TokenStream = dyn Iterator<Item = Token>;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
-    parse_program(tokens).unwrap()
+    let tokens = tokens.into_iter();
+    Parser::new(tokens).parse_program().unwrap()
 }
 
-fn parse_program(tokens: Vec<Token>) -> Result<Ast> {
-    let mut tokens = tokens.into_iter();
-    let mut ast = Ast::default();
-    parse_package(&mut ast, &mut tokens)?;
-    Ok(ast)
+struct Parser<I>
+where
+    I: Iterator<Item = Token>,
+{
+    tokens: Peekable<I>,
+    ast: Ast,
 }
 
-// Example:
-//      package std.io;
-//      package ext;
-//
-fn parse_package(ast: &mut Ast, tokens: &mut TokenStream) -> Result<()> {
-    let kind = tokens.next().map(|t| t.kind);
-    if matches!(kind, Some(k) if k == TokenKind::Package) {
-        let package = parse_package_name(tokens)?;
-        ast.package = Some(package);
-    }
-    Ok(())
-}
-
-// Example:
-//      import std.collection.Map;
-//      import std.log.Logger;
-//
-fn parse_imports(_: &mut Ast, _: &mut TokenStream) -> Result<()> {
-    todo!();
-}
-
-fn parse_package_name(tokens: &mut TokenStream) -> Result<PackageNameTokens> {
-    let mut buffer = vec![];
-    loop {
-        // expecting identifier
-        match tokens.next() {
-            Some(t) if t.kind == TokenKind::Ident => {
-                buffer.push(t);
-            }
-            Some(t) => return Err(Error::UnexpectedToken(t)),
-            None => return Err(Error::UnexpectedEOF),
+impl<I> Parser<I>
+where
+    I: Iterator<Item = Token>,
+{
+    fn new(tokens: I) -> Self {
+        Self {
+            tokens: tokens.peekable(),
+            ast: Ast::default(),
         }
+    }
 
-        // expecting either period (.) or semicolon (;)
-        match tokens.next() {
-            Some(t) if t.kind == TokenKind::Period => {
-                continue;
+    fn parse_program(mut self) -> Result<Ast> {
+        self.parse_package()?;
+        Ok(self.ast)
+    }
+
+    // Example:
+    //      package std.io;
+    //      package ext;
+    //
+    fn parse_package(&mut self) -> Result<()> {
+        let kind = self.tokens.next().map(|t| t.kind);
+        if matches!(kind, Some(k) if k == TokenKind::Package) {
+            let package = self.parse_package_name()?;
+            self.ast.package = Some(package);
+        }
+        Ok(())
+    }
+
+    // Example:
+    //      import std.collection.Map;
+    //      import std.log.Logger;
+    //
+    fn parse_imports(&mut self) -> Result<()> {
+        todo!();
+    }
+
+    fn parse_package_name(&mut self) -> Result<PackageNameTokens> {
+        let mut buffer = vec![];
+        loop {
+            // expecting identifier
+            match self.tokens.next() {
+                Some(t) if t.kind == TokenKind::Ident => {
+                    buffer.push(t);
+                }
+                Some(t) => return Err(Error::UnexpectedToken(t)),
+                None => return Err(Error::UnexpectedEOF),
             }
-            Some(t) if t.kind == TokenKind::Semicolon => {
-                return Ok(buffer);
+
+            // expecting either period (.) or semicolon (;)
+            match self.tokens.next() {
+                Some(t) if t.kind == TokenKind::Period => {
+                    continue;
+                }
+                Some(t) if t.kind == TokenKind::Semicolon => {
+                    return Ok(buffer);
+                }
+                Some(t) => return Err(Error::UnexpectedToken(t)),
+                None => return Err(Error::UnexpectedEOF),
             }
-            Some(t) => return Err(Error::UnexpectedToken(t)),
-            None => return Err(Error::UnexpectedEOF),
         }
     }
 }
@@ -76,12 +95,10 @@ mod tests {
 
         #[test]
         fn test_package_parsing() {
-            let mut tokens = lexer::lex("package std.io;").into_iter();
-            let mut ast = Ast::default();
-            let res = parse_package(&mut ast, &mut tokens);
-            assert!(res.is_ok());
+            let tokens = lexer::lex("package std.io;").into_iter();
+            let res = Parser::new(tokens).parse_program();
             assert_eq!(
-                ast.package,
+                res.unwrap().package,
                 Some(vec![
                     Token {
                         kind: TokenKind::Ident,
@@ -116,9 +133,8 @@ mod tests {
                 ("package std.io", Error::UnexpectedEOF),
             ];
             for (test, err) in tests {
-                let mut tokens = lexer::lex(test).into_iter();
-                let mut ast = Ast::default();
-                let res = parse_package(&mut ast, &mut tokens);
+                let tokens = lexer::lex(test).into_iter();
+                let res = Parser::new(tokens).parse_program();
                 assert_eq!(res, Err(err));
             }
         }
