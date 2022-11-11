@@ -35,6 +35,18 @@ pub enum TokenKind {
      * Symbols
      */
 
+    // Operators have their own precedences, which like the
+    // following:
+    //      1. Multiplication (*) and division (/)
+    //      2. Addition (+) and subtraction (-)
+    //      3. Shifts: (<<) and (>>)
+    //      4. Relational comparisons: (<), (>), (<=) and (>=)
+    //      5. Equality comparisons: (==) and (!=)
+    //      6. Bitwises: (&), (^), (|)
+    //      7. Logicals: (&&) and (||)
+    //      8. Assignments
+    //
+
     #[token("+")]       Add,
     #[token("-")]       Sub,
     #[token("*")]       Mul,

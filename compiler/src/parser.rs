@@ -43,7 +43,7 @@ where
         match self.tokens.peek().unwrap().kind {
             TokenKind::Package => self.parse_package(),
             TokenKind::Import => self.parse_import(),
-            _ => todo!(),
+            _ => self.parse_expression(),
         }
     }
 
@@ -66,6 +66,15 @@ where
         self.tokens.next();
         let package = self.parse_package_name()?;
         self.ast.statements.push(AstNode::Import(package));
+        Ok(())
+    }
+
+    // Expressions are parsed based on operator precedences.
+    //
+    // Example:
+    //  x != 5 && y << 2 + 1 == x * 5 + 10
+    //
+    fn parse_expression(&mut self) -> Result<()> {
         Ok(())
     }
 
