@@ -33,8 +33,17 @@ where
     }
 
     fn parse_program(mut self) -> Result<Ast> {
-        self.parse_package()?;
+        while self.tokens.peek().is_some() {
+            self.parse_statement()?;
+        }
         Ok(self.ast)
+    }
+
+    fn parse_statement(&mut self) -> Result<()> {
+        match self.tokens.peek().unwrap().kind {
+            TokenKind::Package => self.parse_package(),
+            _ => todo!(),
+        }
     }
 
     // Example:
