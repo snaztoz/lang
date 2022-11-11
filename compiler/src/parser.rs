@@ -1,6 +1,6 @@
 use self::error::Error;
 use crate::token::{Token, TokenKind};
-use ast::{Ast, PackageNameTokens};
+use ast::{Ast, AstNode, PackageNameTokens};
 use std::iter::Peekable;
 
 pub mod ast;
@@ -54,7 +54,7 @@ where
     fn parse_package(&mut self) -> Result<()> {
         self.tokens.next();
         let package = self.parse_package_name()?;
-        self.ast.package = Some(package);
+        self.ast.statements.push(AstNode::Package(package));
         Ok(())
     }
 
@@ -65,7 +65,7 @@ where
     fn parse_import(&mut self) -> Result<()> {
         self.tokens.next();
         let package = self.parse_package_name()?;
-        self.ast.imports.push(package);
+        self.ast.statements.push(AstNode::Import(package));
         Ok(())
     }
 
@@ -107,10 +107,11 @@ mod tests {
         #[test]
         fn test_package_parsing() {
             let tokens = lexer::lex("package std.io;").into_iter();
-            let res = Parser::new(tokens).parse_program();
+            let ast = Parser::new(tokens).parse_program().unwrap();
+            assert_eq!(ast.statements.len(), 1);
             assert_eq!(
-                res.unwrap().package,
-                Some(vec![
+                ast.statements[0],
+                AstNode::Package(vec![
                     Token {
                         kind: TokenKind::Ident,
                         span: 8..11,
@@ -128,10 +129,11 @@ mod tests {
         #[test]
         fn test_import_parsing() {
             let tokens = lexer::lex("import std.io;").into_iter();
-            let res = Parser::new(tokens).parse_program();
+            let ast = Parser::new(tokens).parse_program().unwrap();
+            assert_eq!(ast.statements.len(), 1);
             assert_eq!(
-                res.unwrap().imports,
-                vec![vec![
+                ast.statements[0],
+                AstNode::Import(vec![
                     Token {
                         kind: TokenKind::Ident,
                         span: 7..10,
@@ -142,7 +144,7 @@ mod tests {
                         span: 11..13,
                         value: String::from("io"),
                     }
-                ]],
+                ]),
             )
         }
     }
