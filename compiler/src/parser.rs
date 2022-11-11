@@ -1,6 +1,6 @@
 use self::error::Error;
 use crate::token::{Token, TokenKind};
-use ast::{Ast, Context, PackageNameTokens};
+use ast::{Ast, PackageNameTokens};
 
 pub mod ast;
 pub mod error;
@@ -9,27 +9,25 @@ type Result<T> = std::result::Result<T, Error>;
 type TokenStream = dyn Iterator<Item = Token>;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
-    let Context { ast, .. } = parse_program(tokens).unwrap();
-    ast
+    parse_program(tokens).unwrap()
 }
 
-fn parse_program(tokens: Vec<Token>) -> Result<Context> {
+fn parse_program(tokens: Vec<Token>) -> Result<Ast> {
     let mut tokens = tokens.into_iter();
-    let mut context = Context::default();
-    parse_package(&mut context, &mut tokens)?;
-    parse_imports(&mut context, &mut tokens)?;
-    Ok(context)
+    let mut ast = Ast::default();
+    parse_package(&mut ast, &mut tokens)?;
+    Ok(ast)
 }
 
 // Example:
 //      package std.io;
 //      package ext;
 //
-fn parse_package(context: &mut Context, tokens: &mut TokenStream) -> Result<()> {
+fn parse_package(ast: &mut Ast, tokens: &mut TokenStream) -> Result<()> {
     let kind = tokens.next().map(|t| t.kind);
     if matches!(kind, Some(k) if k == TokenKind::Package) {
         let package = parse_package_name(tokens)?;
-        context.ast.package = Some(package);
+        ast.package = Some(package);
     }
     Ok(())
 }
@@ -38,7 +36,7 @@ fn parse_package(context: &mut Context, tokens: &mut TokenStream) -> Result<()> 
 //      import std.collection.Map;
 //      import std.log.Logger;
 //
-fn parse_imports(_: &mut Context, _: &mut TokenStream) -> Result<()> {
+fn parse_imports(_: &mut Ast, _: &mut TokenStream) -> Result<()> {
     todo!();
 }
 
@@ -79,11 +77,11 @@ mod tests {
         #[test]
         fn test_package_parsing() {
             let mut tokens = lexer::lex("package std.io;").into_iter();
-            let mut context = Context::default();
-            let res = parse_package(&mut context, &mut tokens);
+            let mut ast = Ast::default();
+            let res = parse_package(&mut ast, &mut tokens);
             assert!(res.is_ok());
             assert_eq!(
-                context.ast.package,
+                ast.package,
                 Some(vec![
                     Token {
                         kind: TokenKind::Ident,
@@ -119,9 +117,9 @@ mod tests {
             ];
             for (test, err) in tests {
                 let mut tokens = lexer::lex(test).into_iter();
-                let mut context = Context::default();
-                let res = parse_package(&mut context, &mut tokens);
-                assert_eq!(res, Err(err),)
+                let mut ast = Ast::default();
+                let res = parse_package(&mut ast, &mut tokens);
+                assert_eq!(res, Err(err));
             }
         }
     }
