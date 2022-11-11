@@ -42,6 +42,7 @@ where
     fn parse_statement(&mut self) -> Result<()> {
         match self.tokens.peek().unwrap().kind {
             TokenKind::Package => self.parse_package(),
+            TokenKind::Import => self.parse_import(),
             _ => todo!(),
         }
     }
@@ -63,8 +64,11 @@ where
     //      import std.collection.Map;
     //      import std.log.Logger;
     //
-    fn parse_imports(&mut self) -> Result<()> {
-        todo!();
+    fn parse_import(&mut self) -> Result<()> {
+        self.tokens.next();
+        let package = self.parse_package_name()?;
+        self.ast.imports.push(package);
+        Ok(())
     }
 
     fn parse_package_name(&mut self) -> Result<PackageNameTokens> {
@@ -122,6 +126,27 @@ mod tests {
                 ]),
             )
         }
+
+        #[test]
+        fn test_import_parsing() {
+            let tokens = lexer::lex("import std.io;").into_iter();
+            let res = Parser::new(tokens).parse_program();
+            assert_eq!(
+                res.unwrap().imports,
+                vec![vec![
+                    Token {
+                        kind: TokenKind::Ident,
+                        span: 7..10,
+                        value: String::from("std"),
+                    },
+                    Token {
+                        kind: TokenKind::Ident,
+                        span: 11..13,
+                        value: String::from("io"),
+                    }
+                ]],
+            )
+        }
     }
 
     mod failed {
@@ -140,6 +165,27 @@ mod tests {
                     }),
                 ),
                 ("package std.io", Error::UnexpectedEOF),
+            ];
+            for (test, err) in tests {
+                let tokens = lexer::lex(test).into_iter();
+                let res = Parser::new(tokens).parse_program();
+                assert_eq!(res, Err(err));
+            }
+        }
+
+        #[test]
+        fn test_import_parsing() {
+            let tests = vec![
+                ("import ", Error::UnexpectedEOF),
+                (
+                    "import std,io;",
+                    Error::UnexpectedToken(Token {
+                        kind: TokenKind::Comma,
+                        span: 10..11,
+                        value: String::from(","),
+                    }),
+                ),
+                ("import std.io", Error::UnexpectedEOF),
             ];
             for (test, err) in tests {
                 let tokens = lexer::lex(test).into_iter();
