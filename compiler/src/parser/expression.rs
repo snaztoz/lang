@@ -18,13 +18,13 @@ where
     }
 
     pub fn parse(&mut self) -> Result<AstNode> {
-        self.parse_term(None)
+        self.parse_mul_div(None)
     }
 
-    fn parse_term(&mut self, child: Option<AstNode>) -> Result<AstNode> {
+    fn parse_mul_div(&mut self, child: Option<AstNode>) -> Result<AstNode> {
         if child.is_none() {
             let factor = self.parse_factor()?;
-            return self.parse_term(Some(factor));
+            return self.parse_mul_div(Some(factor));
         }
         let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
         if sym.kind != TokenKind::Mul && sym.kind != TokenKind::Div {
@@ -37,7 +37,7 @@ where
             TokenKind::Div => AstNode::Div(child.unwrap().boxed(), factor.boxed()),
             _ => unreachable!(),
         };
-        self.parse_term(Some(node))
+        self.parse_mul_div(Some(node))
     }
 
     fn parse_factor(&mut self) -> Result<AstNode> {
@@ -56,7 +56,7 @@ mod tests {
     use crate::lexer;
 
     #[test]
-    fn test_parse_term() {
+    fn test_parse_mul_div() {
         let tests = [
             (
                 "foo;",
