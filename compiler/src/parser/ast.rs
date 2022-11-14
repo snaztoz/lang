@@ -11,4 +11,13 @@ pub struct Ast {
 pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
+    Mul(Box<AstNode>, Box<AstNode>),
+    Div(Box<AstNode>, Box<AstNode>),
+    Factor(Token),
+}
+
+impl AstNode {
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
 }
