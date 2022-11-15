@@ -19,12 +19,31 @@ where
     }
 
     pub fn parse(&mut self) -> Result<AstNode> {
-        let result = self.parse_mul_div(None)?;
+        let result = self.parse_add_sub(None)?;
         let d = self.tokens.next().unwrap();
         if d.kind != self.delimiter {
             return Err(Error::UnexpectedToken(d));
         }
         Ok(result)
+    }
+
+    fn parse_add_sub(&mut self, child: Option<AstNode>) -> Result<AstNode> {
+        if child.is_none() {
+            let mul_div = self.parse_mul_div(None)?;
+            return self.parse_add_sub(Some(mul_div));
+        }
+        let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
+        if sym.kind != TokenKind::Add && sym.kind != TokenKind::Sub {
+            return Ok(child.unwrap());
+        }
+        let sym = self.tokens.next().unwrap();
+        let mul_div = self.parse_mul_div(None)?;
+        let node = match sym.kind {
+            TokenKind::Add => AstNode::Add(child.unwrap().boxed(), mul_div.boxed()),
+            TokenKind::Sub => AstNode::Sub(child.unwrap().boxed(), mul_div.boxed()),
+            _ => unreachable!(),
+        };
+        self.parse_add_sub(Some(node))
     }
 
     fn parse_mul_div(&mut self, child: Option<AstNode>) -> Result<AstNode> {
@@ -63,6 +82,89 @@ mod tests {
 
     mod success {
         use super::*;
+
+        #[test]
+        fn test_parse_add_sub() {
+            let tests = [
+                (
+                    "foo + 1 * 5;",
+                    AstNode::Add(
+                        AstNode::Factor(Token {
+                            kind: TokenKind::Ident,
+                            span: 0..3,
+                            value: "foo".to_string(),
+                        })
+                        .boxed(),
+                        AstNode::Mul(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 6..7,
+                                value: "1".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 10..11,
+                                value: "5".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                    ),
+                ),
+                (
+                    "(1 - 5) / (foo + 2 / 5);",
+                    AstNode::Div(
+                        AstNode::Sub(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 1..2,
+                                value: "1".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 5..6,
+                                value: "5".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                        AstNode::Add(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 11..14,
+                                value: "foo".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Div(
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 17..18,
+                                    value: "2".to_string(),
+                                })
+                                .boxed(),
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 21..22,
+                                    value: "5".to_string(),
+                                })
+                                .boxed(),
+                            )
+                            .boxed(),
+                        )
+                        .boxed(),
+                    ),
+                ),
+            ];
+            for (i, (input, expected)) in tests.iter().enumerate() {
+                let tokens = lexer::lex(input).into_iter();
+                let ast =
+                    ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+                assert!(ast.is_ok());
+                assert_eq!(ast.unwrap(), *expected, "Failed at case #{}", i + 1);
+            }
+        }
 
         #[test]
         fn test_parse_mul_div() {
