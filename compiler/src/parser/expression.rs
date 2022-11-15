@@ -278,6 +278,34 @@ mod tests {
         use super::*;
 
         #[test]
+        fn test_parse_add_sub() {
+            let tests = [
+                (
+                    "(123+;",
+                    Error::UnexpectedToken(Token {
+                        kind: TokenKind::Semicolon,
+                        span: 5..6,
+                        value: ";".to_string(),
+                    }),
+                ),
+                (
+                    "(1 *5 + + 6);",
+                    Error::UnexpectedToken(Token {
+                        kind: TokenKind::Add,
+                        span: 8..9,
+                        value: "+".to_string(),
+                    }),
+                ),
+            ];
+            for (i, (input, err)) in tests.iter().enumerate() {
+                let tokens = lexer::lex(input).into_iter();
+                let ast =
+                    ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+                assert_eq!(&ast.unwrap_err(), err, "Failed at case #{}", i + 1);
+            }
+        }
+
+        #[test]
         fn test_parse_mul_div() {
             let tests = [
                 (
