@@ -184,7 +184,7 @@ mod tests {
                         kind: TokenKind::Semicolon,
                         span: 4..5,
                         value: ";".to_string(),
-                    })
+                    }),
                 ),
                 (
                     "1 * 5 / ((123 * 7);",
@@ -192,8 +192,8 @@ mod tests {
                         kind: TokenKind::Semicolon,
                         span: 18..19,
                         value: ";".to_string(),
-                    })
-                )
+                    }),
+                ),
             ];
             for (i, (input, err)) in tests.iter().enumerate() {
                 let tokens = lexer::lex(input).into_iter();
