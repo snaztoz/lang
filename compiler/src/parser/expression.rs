@@ -19,12 +19,31 @@ where
     }
 
     pub fn parse(&mut self) -> Result<AstNode> {
-        let result = self.parse_add_sub(None)?;
+        let result = self.parse_shift(None)?;
         let d = self.tokens.next().unwrap();
         if d.kind != self.delimiter {
             return Err(Error::UnexpectedToken(d));
         }
         Ok(result)
+    }
+
+    fn parse_shift(&mut self, child: Option<AstNode>) -> Result<AstNode> {
+        if child.is_none() {
+            let add_sub = self.parse_add_sub(None)?;
+            return self.parse_shift(Some(add_sub));
+        }
+        let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
+        if sym.kind != TokenKind::Shl && sym.kind != TokenKind::Shr {
+            return Ok(child.unwrap());
+        }
+        let sym = self.tokens.next().unwrap();
+        let add_sub = self.parse_add_sub(None)?;
+        let node = match sym.kind {
+            TokenKind::Shl => AstNode::Shl(child.unwrap().boxed(), add_sub.boxed()),
+            TokenKind::Shr => AstNode::Shr(child.unwrap().boxed(), add_sub.boxed()),
+            _ => unreachable!(),
+        };
+        self.parse_shift(Some(node))
     }
 
     fn parse_add_sub(&mut self, child: Option<AstNode>) -> Result<AstNode> {
@@ -82,6 +101,71 @@ mod tests {
 
     mod success {
         use super::*;
+
+        #[test]
+        fn test_parse_shift() {
+            let tests = [
+                (
+                    "foo << 5;",
+                    AstNode::Shl(
+                        AstNode::Factor(Token {
+                            kind: TokenKind::Ident,
+                            span: 0..3,
+                            value: "foo".to_string(),
+                        })
+                        .boxed(),
+                        AstNode::Factor(Token {
+                            kind: TokenKind::Integer,
+                            span: 7..8,
+                            value: "5".to_string(),
+                        })
+                        .boxed(),
+                    ),
+                ),
+                (
+                    "foo << 5 >> bar / 99;",
+                    AstNode::Shr(
+                        AstNode::Shl(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 0..3,
+                                value: "foo".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 7..8,
+                                value: "5".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                        AstNode::Div(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 12..15,
+                                value: "bar".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 18..20,
+                                value: "99".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                    ),
+                ),
+            ];
+            for (i, (input, expected)) in tests.iter().enumerate() {
+                let tokens = lexer::lex(input).into_iter();
+                let ast =
+                    ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+                assert!(ast.is_ok());
+                assert_eq!(ast.unwrap(), *expected, "Failed at case #{}", i + 1);
+            }
+        }
 
         #[test]
         fn test_parse_add_sub() {
