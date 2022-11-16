@@ -112,6 +112,50 @@ impl TokenKind {
     pub fn as_ast_parent(&self, mut childs: HashMap<&str, AstNode>) -> AstNode {
         // we use remove() to take child ownership(s)
         match self {
+            TokenKind::LogicalAnd => AstNode::LogicalAnd(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::LogicalOr => AstNode::LogicalOr(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::And => AstNode::And(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Or => AstNode::Or(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Xor => AstNode::Xor(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Equal => AstNode::Equal(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::NotEqual => AstNode::NotEqual(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Greater => AstNode::Greater(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::GreaterEqual => AstNode::GreaterEqual(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Less => AstNode::Less(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::LessEqual => AstNode::LessEqual(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
             TokenKind::Shl => AstNode::Shl(
                 childs.remove("left").unwrap().boxed(),
                 childs.remove("right").unwrap().boxed(),

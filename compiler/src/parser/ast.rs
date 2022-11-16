@@ -11,12 +11,28 @@ pub struct Ast {
 pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
+
     Mul(Box<AstNode>, Box<AstNode>),
     Div(Box<AstNode>, Box<AstNode>),
     Add(Box<AstNode>, Box<AstNode>),
     Sub(Box<AstNode>, Box<AstNode>),
     Shl(Box<AstNode>, Box<AstNode>),
     Shr(Box<AstNode>, Box<AstNode>),
+
+    Less(Box<AstNode>, Box<AstNode>),
+    LessEqual(Box<AstNode>, Box<AstNode>),
+    Greater(Box<AstNode>, Box<AstNode>),
+    GreaterEqual(Box<AstNode>, Box<AstNode>),
+    Equal(Box<AstNode>, Box<AstNode>),
+    NotEqual(Box<AstNode>, Box<AstNode>),
+
+    And(Box<AstNode>, Box<AstNode>),
+    Or(Box<AstNode>, Box<AstNode>),
+    Xor(Box<AstNode>, Box<AstNode>),
+
+    LogicalAnd(Box<AstNode>, Box<AstNode>),
+    LogicalOr(Box<AstNode>, Box<AstNode>),
+
     Factor(Token),
 }
 

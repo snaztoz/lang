@@ -2,12 +2,17 @@ use super::{ast::AstNode, error::Error, Result};
 use crate::token::{Token, TokenKind};
 use std::{collections::HashMap, iter::Peekable};
 
+type AcceptedKinds = Vec<TokenKind>;
+type Rule = &'static str;
+type NextRule = Rule;
+
 pub struct ExpressionParser<'a, I>
 where
     I: Iterator<Item = Token>,
 {
     tokens: &'a mut Peekable<I>,
     delimiter: TokenKind,
+    rules: HashMap<Rule, (AcceptedKinds, NextRule)>,
 }
 
 impl<'a, I> ExpressionParser<'a, I>
@@ -15,11 +20,47 @@ where
     I: Iterator<Item = Token>,
 {
     pub fn new(tokens: &'a mut Peekable<I>, delimiter: TokenKind) -> Self {
-        Self { tokens, delimiter }
+        let rules = HashMap::from([
+            (
+                "logical",
+                (vec![TokenKind::LogicalAnd, TokenKind::LogicalOr], "bitwise"),
+            ),
+            (
+                "bitwise",
+                (
+                    vec![TokenKind::And, TokenKind::Or, TokenKind::Xor],
+                    "equality",
+                ),
+            ),
+            (
+                "equality",
+                (vec![TokenKind::Equal, TokenKind::NotEqual], "relational"),
+            ),
+            (
+                "relational",
+                (
+                    vec![
+                        TokenKind::Less,
+                        TokenKind::LessEqual,
+                        TokenKind::Greater,
+                        TokenKind::GreaterEqual,
+                    ],
+                    "shift",
+                ),
+            ),
+            ("shift", (vec![TokenKind::Shl, TokenKind::Shr], "add_sub")),
+            ("add_sub", (vec![TokenKind::Add, TokenKind::Sub], "mul_div")),
+            ("mul_div", (vec![TokenKind::Mul, TokenKind::Div], "factor")),
+        ]);
+        Self {
+            tokens,
+            delimiter,
+            rules,
+        }
     }
 
     pub fn parse(&mut self) -> Result<AstNode> {
-        let result = self.parse_shift(None)?;
+        let result = self.parse_rule("logical", None)?;
         let d = self.tokens.next().unwrap();
         if d.kind != self.delimiter {
             return Err(Error::UnexpectedToken(d));
@@ -27,57 +68,26 @@ where
         Ok(result)
     }
 
-    fn parse_shift(&mut self, child: Option<AstNode>) -> Result<AstNode> {
+    fn parse_rule(&mut self, rule: Rule, child: Option<AstNode>) -> Result<AstNode> {
+        if rule == "factor" {
+            // special rule
+            return self.parse_factor();
+        }
+        let (accepted_kinds, next_rule) = &self.rules[rule];
         if child.is_none() {
-            let add_sub = self.parse_add_sub(None)?;
-            return self.parse_shift(Some(add_sub));
+            let child = self.parse_rule(next_rule, None)?;
+            return self.parse_rule(rule, Some(child));
         }
         let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
-        if sym.kind != TokenKind::Shl && sym.kind != TokenKind::Shr {
+        if !accepted_kinds.contains(&sym.kind) {
             return Ok(child.unwrap());
         }
         let sym = self.tokens.next().unwrap();
-        let add_sub = self.parse_add_sub(None)?;
-        let node = sym.kind.as_ast_parent(HashMap::from([
-            ("left", child.unwrap()),
-            ("right", add_sub),
-        ]));
-        self.parse_shift(Some(node))
-    }
-
-    fn parse_add_sub(&mut self, child: Option<AstNode>) -> Result<AstNode> {
-        if child.is_none() {
-            let mul_div = self.parse_mul_div(None)?;
-            return self.parse_add_sub(Some(mul_div));
-        }
-        let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
-        if sym.kind != TokenKind::Add && sym.kind != TokenKind::Sub {
-            return Ok(child.unwrap());
-        }
-        let sym = self.tokens.next().unwrap();
-        let mul_div = self.parse_mul_div(None)?;
-        let node = sym.kind.as_ast_parent(HashMap::from([
-            ("left", child.unwrap()),
-            ("right", mul_div),
-        ]));
-        self.parse_add_sub(Some(node))
-    }
-
-    fn parse_mul_div(&mut self, child: Option<AstNode>) -> Result<AstNode> {
-        if child.is_none() {
-            let factor = self.parse_factor()?;
-            return self.parse_mul_div(Some(factor));
-        }
-        let sym = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
-        if sym.kind != TokenKind::Mul && sym.kind != TokenKind::Div {
-            return Ok(child.unwrap());
-        }
-        let sym = self.tokens.next().unwrap();
-        let factor = self.parse_factor()?;
+        let right = self.parse_rule(next_rule, None)?;
         let node = sym
             .kind
-            .as_ast_parent(HashMap::from([("left", child.unwrap()), ("right", factor)]));
-        self.parse_mul_div(Some(node))
+            .as_ast_parent(HashMap::from([("left", child.unwrap()), ("right", right)]));
+        self.parse_rule(rule, Some(node))
     }
 
     fn parse_factor(&mut self) -> Result<AstNode> {
@@ -97,6 +107,95 @@ mod tests {
 
     mod success {
         use super::*;
+
+        #[test]
+        fn test_parse_expression() {
+            let input = "32 / 2 >= foo && foo != bar || (2 << 8 ^ 1024 + 32);";
+            let tokens = lexer::lex(input).into_iter();
+            let ast = ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+            dbg!(&ast);
+            assert!(ast.is_ok());
+            assert_eq!(
+                ast.unwrap(),
+                AstNode::LogicalOr(
+                    AstNode::LogicalAnd(
+                        AstNode::GreaterEqual(
+                            AstNode::Div(
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 0..2,
+                                    value: "32".to_string(),
+                                })
+                                .boxed(),
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 5..6,
+                                    value: "2".to_string(),
+                                })
+                                .boxed(),
+                            )
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 10..13,
+                                value: "foo".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                        AstNode::NotEqual(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 17..20,
+                                value: "foo".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 24..27,
+                                value: "bar".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                    )
+                    .boxed(),
+                    AstNode::Xor(
+                        AstNode::Shl(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 32..33,
+                                value: "2".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 37..38,
+                                value: "8".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                        AstNode::Add(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 41..45,
+                                value: "1024".to_string(),
+                            })
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Integer,
+                                span: 48..50,
+                                value: "32".to_string(),
+                            })
+                            .boxed(),
+                        )
+                        .boxed(),
+                    )
+                    .boxed(),
+                ),
+            );
+        }
 
         #[test]
         fn test_parse_shift() {
