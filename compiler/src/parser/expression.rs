@@ -1,6 +1,6 @@
 use super::{ast::AstNode, error::Error, Result};
 use crate::token::{Token, TokenKind};
-use std::iter::Peekable;
+use std::{collections::HashMap, iter::Peekable};
 
 pub struct ExpressionParser<'a, I>
 where
@@ -38,11 +38,10 @@ where
         }
         let sym = self.tokens.next().unwrap();
         let add_sub = self.parse_add_sub(None)?;
-        let node = match sym.kind {
-            TokenKind::Shl => AstNode::Shl(child.unwrap().boxed(), add_sub.boxed()),
-            TokenKind::Shr => AstNode::Shr(child.unwrap().boxed(), add_sub.boxed()),
-            _ => unreachable!(),
-        };
+        let node = sym.kind.as_ast_parent(HashMap::from([
+            ("left", child.unwrap()),
+            ("right", add_sub),
+        ]));
         self.parse_shift(Some(node))
     }
 
@@ -57,11 +56,10 @@ where
         }
         let sym = self.tokens.next().unwrap();
         let mul_div = self.parse_mul_div(None)?;
-        let node = match sym.kind {
-            TokenKind::Add => AstNode::Add(child.unwrap().boxed(), mul_div.boxed()),
-            TokenKind::Sub => AstNode::Sub(child.unwrap().boxed(), mul_div.boxed()),
-            _ => unreachable!(),
-        };
+        let node = sym.kind.as_ast_parent(HashMap::from([
+            ("left", child.unwrap()),
+            ("right", mul_div),
+        ]));
         self.parse_add_sub(Some(node))
     }
 
@@ -76,11 +74,9 @@ where
         }
         let sym = self.tokens.next().unwrap();
         let factor = self.parse_factor()?;
-        let node = match sym.kind {
-            TokenKind::Mul => AstNode::Mul(child.unwrap().boxed(), factor.boxed()),
-            TokenKind::Div => AstNode::Div(child.unwrap().boxed(), factor.boxed()),
-            _ => unreachable!(),
-        };
+        let node = sym
+            .kind
+            .as_ast_parent(HashMap::from([("left", child.unwrap()), ("right", factor)]));
         self.parse_mul_div(Some(node))
     }
 

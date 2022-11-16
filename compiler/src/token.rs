@@ -1,4 +1,6 @@
+use crate::parser::ast::AstNode;
 use logos::{Logos, Span};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
@@ -104,6 +106,39 @@ pub enum TokenKind {
     #[regex("0(?i)o[0-7]+")] // oct
     #[regex("0(?i)b[0-1]+")] // bin
     Integer,
+}
+
+impl TokenKind {
+    pub fn as_ast_parent(&self, mut childs: HashMap<&str, AstNode>) -> AstNode {
+        // we use remove() to take child ownership(s)
+        match self {
+            TokenKind::Shl => AstNode::Shl(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Shr => AstNode::Shr(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Add => AstNode::Add(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Sub => AstNode::Sub(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Mul => AstNode::Mul(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            TokenKind::Div => AstNode::Div(
+                childs.remove("left").unwrap().boxed(),
+                childs.remove("right").unwrap().boxed(),
+            ),
+            _ => panic!("can't convert token '{:?}' to AST parent node", self),
+        }
+    }
 }
 
 #[cfg(test)]
