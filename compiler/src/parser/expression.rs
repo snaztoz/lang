@@ -126,7 +126,6 @@ mod tests {
         let input = "32 / 2 >= foo && foo != bar || (2 << 8 ^ 1024 + 32);";
         let tokens = lexer::lex(input).into_iter();
         let ast = ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
-        dbg!(&ast);
         assert!(ast.is_ok());
         assert_eq!(
             ast.unwrap(),
