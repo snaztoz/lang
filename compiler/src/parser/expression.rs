@@ -71,7 +71,7 @@ where
     fn parse_rule(&mut self, rule: Rule, child: Option<AstNode>) -> Result<AstNode> {
         if rule == "factor" {
             // special rule
-            return self.parse_factor();
+            return FactorExpressionParser::new(self.tokens).parse();
         }
         let (accepted_kinds, next_rule) = &self.rules[rule];
         if child.is_none() {
@@ -89,8 +89,24 @@ where
             .as_ast_parent(HashMap::from([("left", child.unwrap()), ("right", right)]));
         self.parse_rule(rule, Some(node))
     }
+}
 
-    fn parse_factor(&mut self) -> Result<AstNode> {
+pub struct FactorExpressionParser<'a, I>
+where
+    I: Iterator<Item = Token>,
+{
+    tokens: &'a mut Peekable<I>,
+}
+
+impl<'a, I> FactorExpressionParser<'a, I>
+where
+    I: Iterator<Item = Token>,
+{
+    fn new(tokens: &'a mut Peekable<I>) -> Self {
+        Self { tokens }
+    }
+
+    fn parse(&mut self) -> Result<AstNode> {
         let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
         match next.kind {
             TokenKind::Integer | TokenKind::Ident => Ok(AstNode::Factor(next)),
