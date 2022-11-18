@@ -181,6 +181,7 @@ where
         let mut args = vec![];
         let next = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
         if next.kind == TokenKind::RParen {
+            self.tokens.next().unwrap();
             return Ok(AstNode::FunctionCall {
                 func: func.boxed(),
                 args,
@@ -344,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_successful_factor_expression_parsing() {
-        let input = "-(!foo).bar[baz].bar(2 << 5 == abc, foo,);";
+        let input = "-(!foo).bar[baz].bar(2 << 5 == abc, foo,)(10)();";
         let tokens = lexer::lex(input).into_iter();
         let ast =
             ExpressionParser::new(&mut tokens.peekable(), vec![TokenKind::Semicolon], true).parse();
@@ -353,74 +354,86 @@ mod tests {
             ast.unwrap(),
             AstNode::Neg(
                 AstNode::FunctionCall {
-                    func: AstNode::MemberAccess {
-                        accessed: AstNode::KeyAccess {
-                            accessed: AstNode::MemberAccess {
-                                accessed: AstNode::Not(
-                                    AstNode::Factor(Token {
+                    func: AstNode::FunctionCall {
+                        func: AstNode::FunctionCall {
+                            func: AstNode::MemberAccess {
+                                accessed: AstNode::KeyAccess {
+                                    accessed: AstNode::MemberAccess {
+                                        accessed: AstNode::Not(
+                                            AstNode::Factor(Token {
+                                                kind: TokenKind::Ident,
+                                                span: 3..6,
+                                                value: "foo".to_string(),
+                                            })
+                                            .boxed()
+                                        )
+                                        .boxed(),
+                                        member: AstNode::Factor(Token {
+                                            kind: TokenKind::Ident,
+                                            span: 8..11,
+                                            value: "bar".to_string(),
+                                        })
+                                        .boxed(),
+                                    }
+                                    .boxed(),
+                                    key: AstNode::Factor(Token {
                                         kind: TokenKind::Ident,
-                                        span: 3..6,
-                                        value: "foo".to_string(),
+                                        span: 12..15,
+                                        value: "baz".to_string(),
                                     })
-                                    .boxed()
-                                )
+                                    .boxed(),
+                                }
                                 .boxed(),
                                 member: AstNode::Factor(Token {
                                     kind: TokenKind::Ident,
-                                    span: 8..11,
+                                    span: 17..20,
                                     value: "bar".to_string(),
                                 })
                                 .boxed(),
                             }
                             .boxed(),
-                            key: AstNode::Factor(Token {
-                                kind: TokenKind::Ident,
-                                span: 12..15,
-                                value: "baz".to_string(),
-                            })
-                            .boxed(),
+                            args: vec![
+                                AstNode::Equal(
+                                    AstNode::Shl(
+                                        AstNode::Factor(Token {
+                                            kind: TokenKind::Integer,
+                                            span: 21..22,
+                                            value: "2".to_string(),
+                                        })
+                                        .boxed(),
+                                        AstNode::Factor(Token {
+                                            kind: TokenKind::Integer,
+                                            span: 26..27,
+                                            value: "5".to_string(),
+                                        })
+                                        .boxed(),
+                                    )
+                                    .boxed(),
+                                    AstNode::Factor(Token {
+                                        kind: TokenKind::Ident,
+                                        span: 31..34,
+                                        value: "abc".to_string(),
+                                    })
+                                    .boxed(),
+                                ),
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Ident,
+                                    span: 36..39,
+                                    value: "foo".to_string(),
+                                }),
+                            ]
                         }
                         .boxed(),
-                        member: AstNode::Factor(Token {
-                            kind: TokenKind::Ident,
-                            span: 17..20,
-                            value: "bar".to_string(),
-                        })
-                        .boxed(),
+                        args: vec![AstNode::Factor(Token {
+                            kind: TokenKind::Integer,
+                            span: 42..44,
+                            value: "10".to_string(),
+                        })],
                     }
                     .boxed(),
-                    args: vec![
-                        AstNode::Equal(
-                            AstNode::Shl(
-                                AstNode::Factor(Token {
-                                    kind: TokenKind::Integer,
-                                    span: 21..22,
-                                    value: "2".to_string(),
-                                })
-                                .boxed(),
-                                AstNode::Factor(Token {
-                                    kind: TokenKind::Integer,
-                                    span: 26..27,
-                                    value: "5".to_string(),
-                                })
-                                .boxed(),
-                            )
-                            .boxed(),
-                            AstNode::Factor(Token {
-                                kind: TokenKind::Ident,
-                                span: 31..34,
-                                value: "abc".to_string(),
-                            })
-                            .boxed(),
-                        ),
-                        AstNode::Factor(Token {
-                            kind: TokenKind::Ident,
-                            span: 36..39,
-                            value: "foo".to_string(),
-                        }),
-                    ]
+                    args: vec![],
                 }
-                .boxed()
+                .boxed(),
             )
         )
     }
