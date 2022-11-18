@@ -12,6 +12,19 @@ pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
 
+    MemberAccess {
+        accessed: Box<AstNode>,
+        member: Box<AstNode>,
+    },
+    KeyAccess {
+        accessed: Box<AstNode>,
+        key: Box<AstNode>,
+    },
+    FunctionCall {
+        func: Box<AstNode>,
+        args: Vec<AstNode>,
+    },
+
     Neg(Box<AstNode>),
     Not(Box<AstNode>),
 

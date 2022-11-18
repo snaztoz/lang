@@ -11,7 +11,8 @@ where
     I: Iterator<Item = Token>,
 {
     tokens: &'a mut Peekable<I>,
-    delimiter: TokenKind,
+    delimiters: Vec<TokenKind>,
+    consume_delimiter: bool,
     rules: HashMap<Rule, (AcceptedKinds, NextRule)>,
 }
 
@@ -19,7 +20,11 @@ impl<'a, I> ExpressionParser<'a, I>
 where
     I: Iterator<Item = Token>,
 {
-    pub fn new(tokens: &'a mut Peekable<I>, delimiter: TokenKind) -> Self {
+    pub fn new(
+        tokens: &'a mut Peekable<I>,
+        delimiters: Vec<TokenKind>,
+        consume_delimiter: bool,
+    ) -> Self {
         let rules = HashMap::from([
             (
                 "logical",
@@ -54,15 +59,25 @@ where
         ]);
         Self {
             tokens,
-            delimiter,
+            delimiters,
+            consume_delimiter,
             rules,
         }
     }
 
     pub fn parse(&mut self) -> Result<AstNode> {
         let result = self.parse_rule("logical", None)?;
+        if !self.consume_delimiter {
+            // this is for soft-stop handling, encountering
+            // one of the specified delimiters but without
+            // consuming it
+            let d = self.tokens.peek().unwrap();
+            if self.delimiters.contains(&d.kind) {
+                return Ok(result);
+            }
+        }
         let d = self.tokens.next().unwrap();
-        if d.kind != self.delimiter {
+        if !self.delimiters.contains(&d.kind) {
             return Err(Error::UnexpectedToken(d));
         }
         Ok(result)
@@ -115,7 +130,9 @@ where
         }
         let base = match next.kind {
             TokenKind::Integer | TokenKind::Ident => Ok(AstNode::Factor(next)),
-            TokenKind::LParen => ExpressionParser::new(self.tokens, TokenKind::RParen).parse(),
+            TokenKind::LParen => {
+                ExpressionParser::new(self.tokens, vec![TokenKind::RParen], true).parse()
+            }
             _ => Err(Error::UnexpectedToken(next)),
         };
         self._parse(base?)
@@ -128,23 +145,74 @@ where
         }
         let node = match next.unwrap().kind {
             TokenKind::Period => self.parse_member_access(child)?,
-            TokenKind::LBrack => self.parse_index_access(child)?,
+            TokenKind::LBrack => self.parse_key_access(child)?,
             TokenKind::LParen => self.parse_function_call(child)?,
             _ => return Ok(child),
         };
         self._parse(node)
     }
 
-    fn parse_member_access(&mut self, child: AstNode) -> Result<AstNode> {
-        todo!();
+    fn parse_member_access(&mut self, accessed: AstNode) -> Result<AstNode> {
+        // skip period symbol
+        assert!(self.tokens.next().unwrap().kind == TokenKind::Period);
+        let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
+        if next.kind != TokenKind::Ident {
+            return Err(Error::UnexpectedToken(next));
+        }
+        Ok(AstNode::MemberAccess {
+            accessed: accessed.boxed(),
+            member: AstNode::Factor(next).boxed(),
+        })
     }
 
-    fn parse_index_access(&mut self, child: AstNode) -> Result<AstNode> {
-        todo!();
+    fn parse_key_access(&mut self, accessed: AstNode) -> Result<AstNode> {
+        // skip left bracket symbol
+        assert!(self.tokens.next().unwrap().kind == TokenKind::LBrack);
+        let node = ExpressionParser::new(self.tokens, vec![TokenKind::RBrack], true).parse()?;
+        Ok(AstNode::KeyAccess {
+            accessed: accessed.boxed(),
+            key: node.boxed(),
+        })
     }
 
-    fn parse_function_call(&mut self, child: AstNode) -> Result<AstNode> {
-        todo!();
+    fn parse_function_call(&mut self, func: AstNode) -> Result<AstNode> {
+        // skip left parentheses symbol
+        assert!(self.tokens.next().unwrap().kind == TokenKind::LParen);
+        let mut args = vec![];
+        let next = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
+        if next.kind == TokenKind::RParen {
+            return Ok(AstNode::FunctionCall {
+                func: func.boxed(),
+                args,
+            });
+        }
+        loop {
+            let arg = ExpressionParser::new(
+                self.tokens,
+                vec![TokenKind::Comma, TokenKind::RParen],
+                false,
+            )
+            .parse()?;
+            args.push(arg);
+            let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
+            match next.kind {
+                TokenKind::Comma => {
+                    // make it possible that the last argument
+                    // can still has a comma following after it
+                    let next = self.tokens.peek().ok_or(Error::UnexpectedEOF)?;
+                    if next.kind == TokenKind::RParen {
+                        self.tokens.next().unwrap();
+                        break;
+                    }
+                }
+                TokenKind::RParen => break,
+                _ => unreachable!(),
+            }
+        }
+        Ok(AstNode::FunctionCall {
+            func: func.boxed(),
+            args,
+        })
     }
 }
 
@@ -157,7 +225,8 @@ mod tests {
     fn test_successful_expression_parsing() {
         let input = "32 / 2 >= foo && foo != -bar || (2 << 8 ^ 1024 + 32);";
         let tokens = lexer::lex(input).into_iter();
-        let ast = ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+        let ast =
+            ExpressionParser::new(&mut tokens.peekable(), vec![TokenKind::Semicolon], true).parse();
         assert!(ast.is_ok());
         assert_eq!(
             ast.unwrap(),
@@ -266,8 +335,93 @@ mod tests {
         ];
         for (i, (input, err)) in tests.iter().enumerate() {
             let tokens = lexer::lex(input).into_iter();
-            let ast = ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
+            let ast =
+                ExpressionParser::new(&mut tokens.peekable(), vec![TokenKind::Semicolon], true)
+                    .parse();
             assert_eq!(&ast.unwrap_err(), err, "Failed at case #{}", i + 1);
         }
+    }
+
+    #[test]
+    fn test_successful_factor_expression_parsing() {
+        let input = "-(!foo).bar[baz].bar(2 << 5 == abc, foo,);";
+        let tokens = lexer::lex(input).into_iter();
+        let ast =
+            ExpressionParser::new(&mut tokens.peekable(), vec![TokenKind::Semicolon], true).parse();
+        assert!(ast.is_ok());
+        assert_eq!(
+            ast.unwrap(),
+            AstNode::Neg(
+                AstNode::FunctionCall {
+                    func: AstNode::MemberAccess {
+                        accessed: AstNode::KeyAccess {
+                            accessed: AstNode::MemberAccess {
+                                accessed: AstNode::Not(
+                                    AstNode::Factor(Token {
+                                        kind: TokenKind::Ident,
+                                        span: 3..6,
+                                        value: "foo".to_string(),
+                                    })
+                                    .boxed()
+                                )
+                                .boxed(),
+                                member: AstNode::Factor(Token {
+                                    kind: TokenKind::Ident,
+                                    span: 8..11,
+                                    value: "bar".to_string(),
+                                })
+                                .boxed(),
+                            }
+                            .boxed(),
+                            key: AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 12..15,
+                                value: "baz".to_string(),
+                            })
+                            .boxed(),
+                        }
+                        .boxed(),
+                        member: AstNode::Factor(Token {
+                            kind: TokenKind::Ident,
+                            span: 17..20,
+                            value: "bar".to_string(),
+                        })
+                        .boxed(),
+                    }
+                    .boxed(),
+                    args: vec![
+                        AstNode::Equal(
+                            AstNode::Shl(
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 21..22,
+                                    value: "2".to_string(),
+                                })
+                                .boxed(),
+                                AstNode::Factor(Token {
+                                    kind: TokenKind::Integer,
+                                    span: 26..27,
+                                    value: "5".to_string(),
+                                })
+                                .boxed(),
+                            )
+                            .boxed(),
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 31..34,
+                                value: "abc".to_string(),
+                            })
+                            .boxed(),
+                        ),
+                        AstNode::Factor(Token {
+                            kind: TokenKind::Ident,
+                            span: 36..39,
+                            value: "foo".to_string(),
+                        }),
+                    ]
+                }
+                .boxed()
+            )
+        )
     }
 }
