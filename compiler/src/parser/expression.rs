@@ -108,6 +108,11 @@ where
 
     fn parse(&mut self) -> Result<AstNode> {
         let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
+        if next.kind == TokenKind::Sub {
+            return Ok(AstNode::Neg(self.parse()?.boxed()));
+        } else if next.kind == TokenKind::Not {
+            return Ok(AstNode::Not(self.parse()?.boxed()));
+        }
         match next.kind {
             TokenKind::Integer | TokenKind::Ident => Ok(AstNode::Factor(next)),
             TokenKind::LParen => ExpressionParser::new(self.tokens, TokenKind::RParen).parse(),
@@ -123,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_successful_expression_parsing() {
-        let input = "32 / 2 >= foo && foo != bar || (2 << 8 ^ 1024 + 32);";
+        let input = "32 / 2 >= foo && foo != -bar || (2 << 8 ^ 1024 + 32);";
         let tokens = lexer::lex(input).into_iter();
         let ast = ExpressionParser::new(&mut tokens.peekable(), TokenKind::Semicolon).parse();
         assert!(ast.is_ok());
@@ -162,12 +167,15 @@ mod tests {
                             value: "foo".to_string(),
                         })
                         .boxed(),
-                        AstNode::Factor(Token {
-                            kind: TokenKind::Ident,
-                            span: 24..27,
-                            value: "bar".to_string(),
-                        })
-                        .boxed(),
+                        AstNode::Neg(
+                            AstNode::Factor(Token {
+                                kind: TokenKind::Ident,
+                                span: 25..28,
+                                value: "bar".to_string(),
+                            })
+                            .boxed()
+                        )
+                        .boxed()
                     )
                     .boxed(),
                 )
@@ -176,13 +184,13 @@ mod tests {
                     AstNode::Shl(
                         AstNode::Factor(Token {
                             kind: TokenKind::Integer,
-                            span: 32..33,
+                            span: 33..34,
                             value: "2".to_string(),
                         })
                         .boxed(),
                         AstNode::Factor(Token {
                             kind: TokenKind::Integer,
-                            span: 37..38,
+                            span: 38..39,
                             value: "8".to_string(),
                         })
                         .boxed(),
@@ -191,13 +199,13 @@ mod tests {
                     AstNode::Add(
                         AstNode::Factor(Token {
                             kind: TokenKind::Integer,
-                            span: 41..45,
+                            span: 42..46,
                             value: "1024".to_string(),
                         })
                         .boxed(),
                         AstNode::Factor(Token {
                             kind: TokenKind::Integer,
-                            span: 48..50,
+                            span: 49..51,
                             value: "32".to_string(),
                         })
                         .boxed(),

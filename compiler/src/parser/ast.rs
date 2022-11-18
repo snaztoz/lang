@@ -12,6 +12,9 @@ pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
 
+    Neg(Box<AstNode>),
+    Not(Box<AstNode>),
+
     Mul(Box<AstNode>, Box<AstNode>),
     Div(Box<AstNode>, Box<AstNode>),
     Add(Box<AstNode>, Box<AstNode>),
