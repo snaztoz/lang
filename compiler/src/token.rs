@@ -2,14 +2,14 @@ use crate::parser::ast::AstNode;
 use logos::{Logos, Span};
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
     pub value: String,
 }
 
-#[derive(Debug, Logos, PartialEq)]
+#[derive(Debug, Eq, Logos, PartialEq)]
 #[rustfmt::skip]
 pub enum TokenKind {
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
