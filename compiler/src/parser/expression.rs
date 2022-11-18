@@ -113,11 +113,38 @@ where
         } else if next.kind == TokenKind::Not {
             return Ok(AstNode::Not(self.parse()?.boxed()));
         }
-        match next.kind {
+        let base = match next.kind {
             TokenKind::Integer | TokenKind::Ident => Ok(AstNode::Factor(next)),
             TokenKind::LParen => ExpressionParser::new(self.tokens, TokenKind::RParen).parse(),
             _ => Err(Error::UnexpectedToken(next)),
+        };
+        self._parse(base?)
+    }
+
+    fn _parse(&mut self, child: AstNode) -> Result<AstNode> {
+        let next = self.tokens.peek();
+        if next.is_none() {
+            return Ok(child);
         }
+        let node = match next.unwrap().kind {
+            TokenKind::Period => self.parse_member_access(child)?,
+            TokenKind::LBrack => self.parse_index_access(child)?,
+            TokenKind::LParen => self.parse_function_call(child)?,
+            _ => return Ok(child),
+        };
+        self._parse(node)
+    }
+
+    fn parse_member_access(&mut self, child: AstNode) -> Result<AstNode> {
+        todo!();
+    }
+
+    fn parse_index_access(&mut self, child: AstNode) -> Result<AstNode> {
+        todo!();
+    }
+
+    fn parse_function_call(&mut self, child: AstNode) -> Result<AstNode> {
+        todo!();
     }
 }
 
