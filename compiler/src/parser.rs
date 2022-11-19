@@ -1,4 +1,4 @@
-use self::{expression::ExpressionParser, package::PackageParser};
+use self::{condition::ConditionParser, expression::ExpressionParser, package::PackageParser};
 use crate::{
     ast::Ast,
     token::{Token, TokenKind},
@@ -6,30 +6,31 @@ use crate::{
 };
 use std::iter::Peekable;
 
+mod condition;
 mod expression;
 mod package;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
-    let tokens = tokens.into_iter();
-    Parser::new(tokens, None).parse().unwrap()
+    let mut tokens = tokens.into_iter().peekable();
+    Parser::new(&mut tokens, None).parse().unwrap()
 }
 
-struct Parser<I>
+struct Parser<'a, I>
 where
     I: Iterator<Item = Token>,
 {
-    tokens: Peekable<I>,
+    tokens: &'a mut Peekable<I>,
     ast: Ast,
     delimiter: Option<TokenKind>,
 }
 
-impl<I> Parser<I>
+impl<'a, I> Parser<'a, I>
 where
     I: Iterator<Item = Token>,
 {
-    fn new(tokens: I, delimiter: Option<TokenKind>) -> Self {
+    fn new(tokens: &'a mut Peekable<I>, delimiter: Option<TokenKind>) -> Self {
         Self {
-            tokens: tokens.peekable(),
+            tokens,
             ast: Ast::default(),
             delimiter,
         }
@@ -39,16 +40,16 @@ where
         while self.tokens.peek().map(|t| &t.kind) != self.delimiter.as_ref() {
             self.parse_statement()?;
         }
+        self.tokens.next();
         Ok(self.ast)
     }
 
     fn parse_statement(&mut self) -> Result<()> {
         let statement = match self.tokens.peek().unwrap().kind {
-            TokenKind::Package => PackageParser::new(&mut self.tokens).parse_package()?,
-            TokenKind::Import => PackageParser::new(&mut self.tokens).parse_import()?,
-            _ => {
-                ExpressionParser::new(&mut self.tokens, vec![TokenKind::Semicolon], true).parse()?
-            }
+            TokenKind::Package => PackageParser::new(self.tokens).parse_package()?,
+            TokenKind::Import => PackageParser::new(self.tokens).parse_import()?,
+            TokenKind::If => ConditionParser::new(self.tokens).parse_if()?,
+            _ => ExpressionParser::new(self.tokens, vec![TokenKind::Semicolon], true).parse()?,
         };
         self.ast.statements.push(statement);
         Ok(())

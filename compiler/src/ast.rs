@@ -12,6 +12,18 @@ pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
 
+    If {
+        condition: Box<AstNode>,
+        block: Ast,
+    },
+    ElseIf {
+        condition: Box<AstNode>,
+        block: Ast,
+    },
+    Else {
+        block: Ast,
+    },
+
     MemberAccess {
         accessed: Box<AstNode>,
         member: Box<AstNode>,
