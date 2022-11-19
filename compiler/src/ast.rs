@@ -24,6 +24,13 @@ pub enum AstNode {
         block: Ast,
     },
 
+    While {
+        condition: Box<AstNode>,
+        block: Ast,
+    },
+    Break,
+    Continue,
+
     MemberAccess {
         accessed: Box<AstNode>,
         member: Box<AstNode>,

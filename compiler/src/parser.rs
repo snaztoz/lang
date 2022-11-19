@@ -1,4 +1,7 @@
-use self::{condition::ConditionParser, expression::ExpressionParser, package::PackageParser};
+use self::{
+    condition::ConditionParser, expression::ExpressionParser, loops::LoopsParser,
+    package::PackageParser,
+};
 use crate::{
     ast::Ast,
     error::Error,
@@ -9,6 +12,7 @@ use std::iter::Peekable;
 
 mod condition;
 mod expression;
+mod loops;
 mod package;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
@@ -59,6 +63,9 @@ where
                     _ => return Err(Error::UnexpectedToken(next)),
                 }
             }
+            TokenKind::While => LoopsParser::new(self.tokens).parse_while()?,
+            TokenKind::Break => LoopsParser::new(self.tokens).parse_break()?,
+            TokenKind::Continue => LoopsParser::new(self.tokens).parse_continue()?,
             _ => ExpressionParser::new(self.tokens, vec![TokenKind::Semicolon], true).parse()?,
         };
         self.ast.statements.push(statement);
