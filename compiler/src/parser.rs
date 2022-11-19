@@ -1,17 +1,17 @@
-use self::expression::ExpressionParser;
+use self::{expression::ExpressionParser, package::PackageParser};
 use crate::{
-    ast::{Ast, AstNode, PackageNameTokens},
-    error::Error,
+    ast::Ast,
     token::{Token, TokenKind},
     Result,
 };
 use std::iter::Peekable;
 
 mod expression;
+mod package;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
     let tokens = tokens.into_iter();
-    Parser::new(tokens).parse_program().unwrap()
+    Parser::new(tokens).parse().unwrap()
 }
 
 struct Parser<I>
@@ -33,7 +33,7 @@ where
         }
     }
 
-    fn parse_program(mut self) -> Result<Ast> {
+    fn parse(mut self) -> Result<Ast> {
         while self.tokens.peek().is_some() {
             self.parse_statement()?;
         }
@@ -41,78 +41,22 @@ where
     }
 
     fn parse_statement(&mut self) -> Result<()> {
-        match self.tokens.peek().unwrap().kind {
-            TokenKind::Package => self.parse_package(),
-            TokenKind::Import => self.parse_import(),
-            _ => self.parse_expression(),
-        }
-    }
-
-    // Example:
-    //      package std.io;
-    //      package ext;
-    //
-    fn parse_package(&mut self) -> Result<()> {
-        self.tokens.next();
-        let package = self.parse_package_name()?;
-        self.ast.statements.push(AstNode::Package(package));
-        Ok(())
-    }
-
-    // Example:
-    //      import std.collection.Map;
-    //      import std.log.Logger;
-    //
-    fn parse_import(&mut self) -> Result<()> {
-        self.tokens.next();
-        let package = self.parse_package_name()?;
-        self.ast.statements.push(AstNode::Import(package));
-        Ok(())
-    }
-
-    // Expressions are parsed based on operator precedences.
-    //
-    // Example:
-    //  x != 5 && y << 2 + 1 == x * 5 + 10
-    //
-    fn parse_expression(&mut self) -> Result<()> {
-        let mut _expr_parser =
-            ExpressionParser::new(&mut self.tokens, vec![TokenKind::Semicolon], true);
-        _expr_parser.parse().unwrap();
-        Ok(())
-    }
-
-    fn parse_package_name(&mut self) -> Result<PackageNameTokens> {
-        let mut buffer = vec![];
-        loop {
-            // expecting identifier
-            match self.tokens.next() {
-                Some(t) if t.kind == TokenKind::Ident => {
-                    buffer.push(t);
-                }
-                Some(t) => return Err(Error::UnexpectedToken(t)),
-                None => return Err(Error::UnexpectedEOF),
+        let statement = match self.tokens.peek().unwrap().kind {
+            TokenKind::Package => PackageParser::new(&mut self.tokens).parse_package()?,
+            TokenKind::Import => PackageParser::new(&mut self.tokens).parse_import()?,
+            _ => {
+                ExpressionParser::new(&mut self.tokens, vec![TokenKind::Semicolon], true).parse()?
             }
-
-            // expecting either period (.) or semicolon (;)
-            match self.tokens.next() {
-                Some(t) if t.kind == TokenKind::Period => {
-                    continue;
-                }
-                Some(t) if t.kind == TokenKind::Semicolon => {
-                    return Ok(buffer);
-                }
-                Some(t) => return Err(Error::UnexpectedToken(t)),
-                None => return Err(Error::UnexpectedEOF),
-            }
-        }
+        };
+        self.ast.statements.push(statement);
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer;
+    use crate::{ast::AstNode, error::Error, lexer};
 
     mod success {
         use super::*;
@@ -120,7 +64,7 @@ mod tests {
         #[test]
         fn test_package_parsing() {
             let tokens = lexer::lex("package std.io;").into_iter();
-            let ast = Parser::new(tokens).parse_program().unwrap();
+            let ast = Parser::new(tokens).parse().unwrap();
             assert_eq!(ast.statements.len(), 1);
             assert_eq!(
                 ast.statements[0],
@@ -142,7 +86,7 @@ mod tests {
         #[test]
         fn test_import_parsing() {
             let tokens = lexer::lex("import std.io;").into_iter();
-            let ast = Parser::new(tokens).parse_program().unwrap();
+            let ast = Parser::new(tokens).parse().unwrap();
             assert_eq!(ast.statements.len(), 1);
             assert_eq!(
                 ast.statements[0],
@@ -181,7 +125,7 @@ mod tests {
             ];
             for (test, err) in tests {
                 let tokens = lexer::lex(test).into_iter();
-                let res = Parser::new(tokens).parse_program();
+                let res = Parser::new(tokens).parse();
                 assert_eq!(res, Err(err));
             }
         }
@@ -202,7 +146,7 @@ mod tests {
             ];
             for (test, err) in tests {
                 let tokens = lexer::lex(test).into_iter();
-                let res = Parser::new(tokens).parse_program();
+                let res = Parser::new(tokens).parse();
                 assert_eq!(res, Err(err));
             }
         }
