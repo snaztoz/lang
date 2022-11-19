@@ -17,3 +17,6 @@ categories = [
 
 [dependencies]
 logos = "0.12.1"
+
+[dev-dependencies]
+indoc = "1.0.7"
