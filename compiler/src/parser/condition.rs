@@ -1,7 +1,6 @@
-use super::Parser;
 use crate::{
     ast::AstNode,
-    parser::expression::ExpressionParser,
+    parser::{expression::ExpressionParser, Parser},
     token::{Token, TokenKind},
     Result,
 };
