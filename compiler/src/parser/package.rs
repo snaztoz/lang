@@ -58,3 +58,97 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ast::AstNode, error::Error, lexer};
+
+    #[test]
+    fn test_successful_package_parsing() {
+        let input = "package std.io;";
+        let tokens = lexer::lex(input).into_iter();
+        let ast = PackageParser::new(&mut tokens.peekable()).parse_package();
+        assert!(ast.is_ok());
+        assert_eq!(
+            ast.unwrap(),
+            AstNode::Package(vec![
+                Token {
+                    kind: TokenKind::Ident,
+                    span: 8..11,
+                    value: String::from("std"),
+                },
+                Token {
+                    kind: TokenKind::Ident,
+                    span: 12..14,
+                    value: String::from("io"),
+                }
+            ]),
+        )
+    }
+
+    #[test]
+    fn test_successful_import_parsing() {
+        let input = "import std.io;";
+        let tokens = lexer::lex(input).into_iter();
+        let ast = PackageParser::new(&mut tokens.peekable()).parse_import();
+        assert!(ast.is_ok());
+        assert_eq!(
+            ast.unwrap(),
+            AstNode::Import(vec![
+                Token {
+                    kind: TokenKind::Ident,
+                    span: 7..10,
+                    value: String::from("std"),
+                },
+                Token {
+                    kind: TokenKind::Ident,
+                    span: 11..13,
+                    value: String::from("io"),
+                }
+            ]),
+        )
+    }
+
+    #[test]
+    fn test_failed_package_parsing() {
+        let tests = vec![
+            ("package ", Error::UnexpectedEOF),
+            (
+                "package std,io;",
+                Error::UnexpectedToken(Token {
+                    kind: TokenKind::Comma,
+                    span: 11..12,
+                    value: String::from(","),
+                }),
+            ),
+            ("package std.io", Error::UnexpectedEOF),
+        ];
+        for (test, err) in tests {
+            let tokens = lexer::lex(test).into_iter();
+            let ast = PackageParser::new(&mut tokens.peekable()).parse_package();
+            assert_eq!(ast, Err(err));
+        }
+    }
+
+    #[test]
+    fn test_failed_import_parsing() {
+        let tests = vec![
+            ("import ", Error::UnexpectedEOF),
+            (
+                "import std,io;",
+                Error::UnexpectedToken(Token {
+                    kind: TokenKind::Comma,
+                    span: 10..11,
+                    value: String::from(","),
+                }),
+            ),
+            ("import std.io", Error::UnexpectedEOF),
+        ];
+        for (test, err) in tests {
+            let tokens = lexer::lex(test).into_iter();
+            let ast = PackageParser::new(&mut tokens.peekable()).parse_import();
+            assert_eq!(ast, Err(err));
+        }
+    }
+}
