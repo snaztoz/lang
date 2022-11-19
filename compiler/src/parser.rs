@@ -1,6 +1,7 @@
 use self::{condition::ConditionParser, expression::ExpressionParser, package::PackageParser};
 use crate::{
     ast::Ast,
+    error::Error,
     token::{Token, TokenKind},
     Result,
 };
@@ -49,6 +50,15 @@ where
             TokenKind::Package => PackageParser::new(self.tokens).parse_package()?,
             TokenKind::Import => PackageParser::new(self.tokens).parse_import()?,
             TokenKind::If => ConditionParser::new(self.tokens).parse_if()?,
+            TokenKind::Else => {
+                self.tokens.next();
+                let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
+                match next.kind {
+                    TokenKind::If => ConditionParser::new(self.tokens).parse_else_if()?,
+                    TokenKind::LBrace => ConditionParser::new(self.tokens).parse_else()?,
+                    _ => return Err(Error::UnexpectedToken(next)),
+                }
+            }
             _ => ExpressionParser::new(self.tokens, vec![TokenKind::Semicolon], true).parse()?,
         };
         self.ast.statements.push(statement);
