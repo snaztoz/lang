@@ -29,27 +29,27 @@ mod tests {
                 Token {
                     kind: TokenKind::Const,
                     span: 0..5,
-                    value: String::from("const"),
+                    value: "const".to_string(),
                 },
                 Token {
                     kind: TokenKind::Ident,
                     span: 6..14,
-                    value: String::from("numApple"),
+                    value: "numApple".to_string(),
                 },
                 Token {
                     kind: TokenKind::Assign,
                     span: 15..16,
-                    value: String::from("="),
+                    value: "=".to_string(),
                 },
                 Token {
                     kind: TokenKind::Integer,
                     span: 17..19,
-                    value: String::from("15"),
+                    value: "15".to_string(),
                 },
                 Token {
                     kind: TokenKind::Semicolon,
                     span: 19..20,
-                    value: String::from(";"),
+                    value: ";".to_string(),
                 },
             ],
         )

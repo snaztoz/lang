@@ -76,12 +76,12 @@ mod tests {
                 Token {
                     kind: TokenKind::Ident,
                     span: 8..11,
-                    value: String::from("std"),
+                    value: "std".to_string(),
                 },
                 Token {
                     kind: TokenKind::Ident,
                     span: 12..14,
-                    value: String::from("io"),
+                    value: "io".to_string(),
                 }
             ]),
         )
@@ -99,12 +99,12 @@ mod tests {
                 Token {
                     kind: TokenKind::Ident,
                     span: 7..10,
-                    value: String::from("std"),
+                    value: "std".to_string(),
                 },
                 Token {
                     kind: TokenKind::Ident,
                     span: 11..13,
-                    value: String::from("io"),
+                    value: "io".to_string(),
                 }
             ]),
         )
@@ -119,7 +119,7 @@ mod tests {
                 Error::UnexpectedToken(Token {
                     kind: TokenKind::Comma,
                     span: 11..12,
-                    value: String::from(","),
+                    value: ",".to_string(),
                 }),
             ),
             ("package std.io", Error::UnexpectedEOF),
@@ -140,7 +140,7 @@ mod tests {
                 Error::UnexpectedToken(Token {
                     kind: TokenKind::Comma,
                     span: 10..11,
-                    value: String::from(","),
+                    value: ",".to_string(),
                 }),
             ),
             ("import std.io", Error::UnexpectedEOF),
