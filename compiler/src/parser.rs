@@ -11,7 +11,7 @@ mod package;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
     let tokens = tokens.into_iter();
-    Parser::new(tokens).parse().unwrap()
+    Parser::new(tokens, None).parse().unwrap()
 }
 
 struct Parser<I>
@@ -20,21 +20,23 @@ where
 {
     tokens: Peekable<I>,
     ast: Ast,
+    delimiter: Option<TokenKind>,
 }
 
 impl<I> Parser<I>
 where
     I: Iterator<Item = Token>,
 {
-    fn new(tokens: I) -> Self {
+    fn new(tokens: I, delimiter: Option<TokenKind>) -> Self {
         Self {
             tokens: tokens.peekable(),
             ast: Ast::default(),
+            delimiter,
         }
     }
 
     fn parse(mut self) -> Result<Ast> {
-        while self.tokens.peek().is_some() {
+        while self.tokens.peek().map(|t| &t.kind) != self.delimiter.as_ref() {
             self.parse_statement()?;
         }
         Ok(self.ast)
