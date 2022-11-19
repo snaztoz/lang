@@ -123,12 +123,9 @@ where
 
     fn parse(&mut self) -> Result<AstNode> {
         let next = self.tokens.next().ok_or(Error::UnexpectedEOF)?;
-        if next.kind == TokenKind::Sub {
-            return Ok(AstNode::Neg(self.parse()?.boxed()));
-        } else if next.kind == TokenKind::Not {
-            return Ok(AstNode::Not(self.parse()?.boxed()));
-        }
         let base = match next.kind {
+            TokenKind::Sub => return Ok(AstNode::Neg(self.parse()?.boxed())),
+            TokenKind::Not => return Ok(AstNode::Not(self.parse()?.boxed())),
             TokenKind::Integer | TokenKind::Ident => Ok(AstNode::Factor(next)),
             TokenKind::LParen => {
                 ExpressionParser::new(self.tokens, vec![TokenKind::RParen], true).parse()
