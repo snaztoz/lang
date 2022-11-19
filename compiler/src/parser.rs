@@ -1,12 +1,13 @@
-use self::error::Error;
-use crate::token::{Token, TokenKind};
-use ast::{Ast, AstNode, PackageNameTokens};
+use self::expression::ExpressionParser;
+use crate::{
+    ast::{Ast, AstNode, PackageNameTokens},
+    error::Error,
+    token::{Token, TokenKind},
+    Result,
+};
 use std::iter::Peekable;
 
-pub mod ast;
-pub mod error;
-
-type Result<T> = std::result::Result<T, Error>;
+mod expression;
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
     let tokens = tokens.into_iter();
@@ -75,6 +76,9 @@ where
     //  x != 5 && y << 2 + 1 == x * 5 + 10
     //
     fn parse_expression(&mut self) -> Result<()> {
+        let mut _expr_parser =
+            ExpressionParser::new(&mut self.tokens, vec![TokenKind::Semicolon], true);
+        _expr_parser.parse().unwrap();
         Ok(())
     }
 

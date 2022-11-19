@@ -1,4 +1,4 @@
-use crate::parser::ast::AstNode;
+use crate::ast::AstNode;
 use logos::{Logos, Span};
 use std::collections::HashMap;
 

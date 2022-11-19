@@ -1,5 +1,9 @@
-use super::{ast::AstNode, error::Error, Result};
-use crate::token::{Token, TokenKind};
+use crate::{
+    ast::AstNode,
+    error::Error,
+    token::{Token, TokenKind},
+    Result,
+};
 use std::{collections::HashMap, iter::Peekable};
 
 type AcceptedKinds = Vec<TokenKind>;
