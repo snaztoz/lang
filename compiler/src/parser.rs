@@ -1,6 +1,6 @@
 use self::{
-    condition::ConditionParser, expression::ExpressionParser, loops::LoopsParser,
-    package::PackageParser,
+    condition::ConditionParser, declaration::DeclarationParser, expression::ExpressionParser,
+    loops::LoopsParser, package::PackageParser,
 };
 use crate::{
     ast::Ast,
@@ -11,6 +11,7 @@ use crate::{
 use std::iter::Peekable;
 
 mod condition;
+mod declaration;
 mod expression;
 mod loops;
 mod package;
@@ -53,6 +54,9 @@ where
         let statement = match self.tokens.peek().unwrap().kind {
             TokenKind::Package => PackageParser::new(self.tokens).parse_package()?,
             TokenKind::Import => PackageParser::new(self.tokens).parse_import()?,
+            TokenKind::Const | TokenKind::Var => {
+                DeclarationParser::new(self.tokens).parse_variable()?
+            }
             TokenKind::If => ConditionParser::new(self.tokens).parse_if()?,
             TokenKind::Else => {
                 self.tokens.next();

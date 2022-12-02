@@ -2,15 +2,21 @@ use crate::token::Token;
 
 pub type PackageNameTokens = Vec<Token>;
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Ast {
     pub statements: Vec<AstNode>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AstNode {
     Package(PackageNameTokens),
     Import(PackageNameTokens),
+
+    VariableDeclaration {
+        kind: VariableDeclarationKind,
+        ident: Token,
+        value: Option<Box<AstNode>>,
+    },
 
     If {
         condition: Box<AstNode>,
@@ -75,4 +81,10 @@ impl AstNode {
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum VariableDeclarationKind {
+    Var,
+    Const,
 }
